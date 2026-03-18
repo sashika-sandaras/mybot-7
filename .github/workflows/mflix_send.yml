@@ -1,4 +1,4 @@
-name: Send Movie File (Final Fix)
+name: Send Movie File (Original Name Fix)
 
 on:
   workflow_dispatch:
@@ -42,37 +42,41 @@ jobs:
           USER_JID: ${{ github.event.inputs.user_jid }}
         run: |
           cat <<'EOF' > downloader.py
-          import os, requests, sys, gdown
+          import os, requests, sys, gdown, re
 
           file_id = os.getenv('FILE_ID')
           voe_key = os.getenv('VOE_KEY')
-          output = 'movie_mflix.mp4'
+
+          def get_filename(response, url):
+              cd = response.headers.get('content-disposition')
+              if cd and 'filename=' in cd:
+                  fname = re.findall('filename="?([^"]+)"?', cd)[0]
+                  return fname
+              return os.path.basename(url.split('?')[0]) or "video.mkv"
 
           try:
-              if len(file_id) > 20: # GDrive Detect
-                  print(f"Downloading from GDrive using gdown: {file_id}")
+              if len(file_id) > 20: # GDrive Logic
                   url = f'https://drive.google.com/uc?id={file_id}'
-                  gdown.download(url, output, quiet=False, fuzzy=True)
-              else: # VOE Detect
+                  # gdown ඔටෝමැටිකලි නියම නමෙන් ෆයිල් එක ඩවුන්ලෝඩ් කරයි
+                  output = gdown.download(url, quiet=False, fuzzy=True)
+              else: # VOE Logic
                   api_url = f"https://voe.sx/api/drive/v2/file/info?key={voe_key}&file_code={file_id}"
                   r = requests.get(api_url).json()
                   direct_url = r.get('result', {}).get('direct_url')
                   if direct_url:
-                      print(f"Downloading from VOE: {direct_url}")
-                      with requests.get(direct_url, stream=True) as r_file:
-                          with open(output, 'wb') as f:
-                              for chunk in r_file.iter_content(chunk_size=1024*1024):
-                                  if chunk: f.write(chunk)
+                      res = requests.get(direct_url, stream=True)
+                      output = get_filename(res, direct_url)
+                      with open(output, 'wb') as f:
+                          for chunk in res.iter_content(1024*1024): f.write(chunk)
                   else:
-                      print("Error: VOE Direct link not found")
+                      print("Error: VOE link not found")
                       sys.exit(1)
 
-              size = os.path.getsize(output)
-              print(f"Download Finished! Size: {size / (1024*1024):.2f} MB")
-              
-              if size < 100000:
-                  print("Error: File is too small.")
-                  sys.exit(1)
+              # සේව් වුණු නම filename.txt එකට ලියනවා Node.js වලට ගන්න
+              with open('filename.txt', 'w', encoding='utf-8') as f:
+                  f.write(output)
+              print(f"Download Finished! Filename: {output}")
+
           except Exception as e:
               print(f"Critical Error: {e}")
               sys.exit(1)
