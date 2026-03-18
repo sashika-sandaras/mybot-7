@@ -25,6 +25,10 @@ async function sendMovie() {
         auth: state,
         version,
         logger: pino({ level: 'silent' }),
+        // ලොකු ෆයිල් යැවීමේදී ඇතිවන ප්‍රශ්න අවම කිරීමට timeout වැඩි කිරීම
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 0,
+        keepAliveIntervalMs: 10000
     });
 
     sock.ev.on('creds.update', saveCreds);
@@ -38,17 +42,18 @@ async function sendMovie() {
             const filePath = './movie_mflix.mp4';
 
             if (fs.existsSync(filePath)) {
-                console.log("📤 Sending video... this may take a few minutes for large files.");
+                console.log("📤 Sending as Document (Stable for large files)...");
                 
+                // වීඩියෝ එකක් විදිහට නෙවෙයි, ඩොකියුමන්ට් එකක් විදිහට යවනවා (Bypass limit)
                 await sock.sendMessage(userJid, { 
-                    video: { url: filePath }, 
-                    caption: "🎬 *MFlix Movie Delivery*\n\nරසවිඳින්න! 🍿\n\nWebsite: edulk.xyz",
+                    document: fs.readFileSync(filePath), 
                     mimetype: 'video/mp4',
-                    fileName: 'MFlix_Movie.mp4'
+                    fileName: 'MFlix_Movie.mp4',
+                    caption: "🎬 *MFlix Video Delivery*\n\nලොකු ෆයිල් එකක් නිසා මෙය ඩොකියුමන්ට් එකක් ලෙස එවා ඇත. ඩවුන්ලෝඩ් කර රසවිඳින්න! 🍿"
                 });
 
-                console.log("🚀 Video Sent Successfully!");
-                await delay(15000); // විනාඩි කිහිපයක් රැඳී සිටීම
+                console.log("🚀 Movie Sent Successfully!");
+                await delay(15000); 
                 process.exit(0);
             } else {
                 console.log("❌ File not found!");
